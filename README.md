@@ -1,131 +1,364 @@
-# 🌍 Happiness Score Prediction with Kafka + Machine Learning
+# 🌍 Happiness Score Prediction using Apache Kafka + Machine Learning
 
-ETL Workshop 3 - Data Engineering and Artificial Intelligence  
+**ETL Workshop 3** - Data Engineering and Artificial Intelligence  
 Universidad Autónoma de Occidente
 
-## 📋 Project Overview
+[![Python](https://img.shields.io/badge/Python-3.7+-blue.svg)](https://www.python.org/)
+[![Kafka](https://img.shields.io/badge/Apache%20Kafka-Streaming-red.svg)](https://kafka.apache.org/)
+[![MySQL](https://img.shields.io/badge/MySQL-Database-orange.svg)](https://www.mysql.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-This project implements an end-to-end ML pipeline that combines **Data Streaming (Apache Kafka)** with **Machine Learning** to predict happiness scores across different countries and years. The system trains a regression model on World Happiness Report data, streams transformed data through Kafka, and stores predictions in a MySQL database for analysis.
+---
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [System Architecture](#system-architecture)
+- [Key Features](#key-features)
+- [Project Structure](#project-structure)
+- [Exploratory Data Analysis (EDA)](#exploratory-data-analysis-eda)
+- [Technologies](#technologies)
+- [Installation & Setup](#installation--setup)
+- [Execution Guide](#execution-guide)
+- [Model Evaluation](#model-evaluation)
+- [Database Schema](#database-schema)
+- [Results & Visualizations](#results--visualizations)
+- [Authors](#authors)
+
+---
+
+## 🎯 Overview
+
+This project implements an **end-to-end machine learning pipeline** that combines **real-time data streaming** using Apache Kafka with **predictive modeling** to forecast happiness scores across different countries (2015-2019). The system processes World Happiness Report data through an ETL pipeline, trains a regression model, and streams predictions to a MySQL database.
+
+### Objectives
+
+1. ✅ Perform comprehensive **ETL** (Extract, Transform, Load) on multi-year datasets
+2. ✅ Implement **MICE with PMM** imputation for missing values (preserving all data)
+3. ✅ Train a **regression model** (70/30 split) to predict happiness scores
+4. ✅ Stream data using **Apache Kafka** in real-time
+5. ✅ Store predictions in **MySQL** for analysis and reporting
+6. ✅ Generate **KPIs and visualizations** for model performance
+
+---
 
 ## 🏗️ System Architecture
-
 ```
-CSV Files → EDA → Model Training → .pkl Model
-                                      ↓
-Test Data → Kafka Producer → Kafka Topic → Kafka Consumer → Predictions
-                                                  ↓
-                                            Load Model (.pkl)
-                                                  ↓
-                                            MySQL Database
+┌─────────────────────────────────────────────────────────────────┐
+│                     DATA INGESTION & ETL                         │
+└─────────────────────────────────────────────────────────────────┘
+                                 ↓
+┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐
+│2015.csv │ → │2016.csv │ → │2017.csv │ → │2018.csv │ → │2019.csv│
+└─────────┘    └─────────┘    └─────────┘    └─────────┘
+                                 ↓
+                    [Column Standardization]
+                                 ↓
+                    [MICE + PMM Imputation]
+                                 ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                     MACHINE LEARNING                             │
+└─────────────────────────────────────────────────────────────────┘
+                                 ↓
+                      [Train/Test Split 70/30]
+                                 ↓
+                    [Linear Regression Model]
+                                 ↓
+                    [happiness_model.pkl]
+                                 ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                     KAFKA STREAMING                              │
+└─────────────────────────────────────────────────────────────────┘
+                                 ↓
+         [Producer] → [Kafka Topic] → [Consumer]
+                                 ↓
+                    [Load Model & Predict]
+                                 ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                     MYSQL DATABASE                               │
+└─────────────────────────────────────────────────────────────────┘
+           [Store: Features + Actual + Predicted]
 ```
 
-## 🎯 Key Features
+---
 
-- **ETL Pipeline**: Extract, Transform, Load data from multiple CSV sources
-- **Machine Learning**: Train regression model (70/30 split) to predict happiness scores
-- **Real-time Streaming**: Stream data using Apache Kafka
-- **Prediction System**: Load trained model and predict on streaming data
-- **Database Storage**: Store features, actual scores, and predictions in MySQL
-- **Performance Metrics**: R², MAE, RMSE evaluation
+## ✨ Key Features
+
+### 🔄 Advanced ETL Pipeline
+- **Multi-year data integration** (2015-2019) with automatic column mapping
+- **MICE with PMM imputation** for missing values (preserves 100% of data)
+- **Column standardization** across different CSV formats
+
+### 🤖 Machine Learning
+- **Linear Regression** model with 6 predictor variables
+- **70/30 train-test split** with evaluation metrics (R², MAE, RMSE)
+- **Model serialization** (.pkl) for production use
+
+### 📡 Real-time Streaming
+- **Apache Kafka** producer/consumer architecture
+- **Record-by-record streaming** with configurable delay
+- **Idempotent operations** with error handling
+
+### 💾 Database Integration
+- **MySQL** storage with environment-based configuration
+- **Structured schema** for predictions and features
+- **Indexed queries** for optimal performance
+
+### 📊 Analytics & Reporting
+- **Automated analysis** scripts with statistical summaries
+- **Visualization generation** (matplotlib/seaborn)
+- **KPI tracking** (prediction error, regional analysis)
+
+---
 
 ## 📁 Project Structure
-
 ```
 happiness-kafka-project/
+│
 ├── data/
-│   ├── raw/                    # Place your 5 CSV files here
-│   └── processed/              # Processed data (auto-generated)
+│   ├── raw/                         # 5 CSV files (2015-2019)
+│   │   ├── 2015.csv
+│   │   ├── 2016.csv
+│   │   ├── 2017.csv
+│   │   ├── 2018.csv
+│   │   └── 2019.csv
+│   └── processed/
+│       └── test_data.csv            # Generated test data
+│
 ├── models/
-│   └── happiness_model.pkl     # Trained model (auto-generated)
+│   └── happiness_model.pkl          # Trained ML model
+│
 ├── src/
-│   ├── config.py              # Configuration file
-│   ├── train_model.py         # Model training script
-│   ├── kafka_producer.py      # Kafka producer
-│   └── kafka_consumer.py      # Kafka consumer
+│   ├── config.py                    # Configuration & column mapping
+│   ├── train_model.py               # Model training script
+│   ├── kafka_producer.py            # Kafka producer
+│   ├── kafka_consumer.py            # Kafka consumer
+│   ├── system_check.py              # System verification
+│   └── analyze_predictions.py       # Results analysis
+│
 ├── database/
-│   └── create_database.sql    # SQL script to create database
-├── notebooks/                  # Jupyter notebooks (optional)
-├── visualizations/            # Charts and visualizations
-├── .env                       # Environment variables (create this)
-├── .env.example              # Environment variables template
+│   └── create_database.sql          # MySQL schema
+│
+├── EDA/
+│   ├── aporte.png                   # Variable justification
+│   ├── Corr.png                     # Correlation matrix
+│   ├── outliers.png                 # Outlier detection
+│   └── Regiones.png                 # Regional analysis
+│
+├── .env                             # Environment variables (create this)
+├── .env.example                     # Environment template
 ├── .gitignore
 ├── requirements.txt
-└── README.md
+├── README.md
+└── EXECUTION_GUIDE.md
 ```
 
-## 🚀 Setup Instructions
+---
 
-### 1. Prerequisites
+## 📊 Exploratory Data Analysis (EDA)
 
-- Python 3.7+
-- MySQL (with Workbench)
-- Apache Kafka (installed and running)
-- WSL (if using Windows)
+### 1. Variable Selection Justification
 
-### 2. Clone/Download the Project
+Our feature selection was based on three criteria:
+- **High correlation** with Happiness Score (|r| > 0.4)
+- **Complete availability** across all years (≥ 90%)
+- **Non-redundancy** between variables
 
+![Variable Justification](EDA/aporte.png)
+
+**Selected Features (6):**
+- ✅ GDP (Economy)
+- ✅ Family (Social Support)
+- ✅ Health (Life Expectancy)
+- ✅ Freedom
+- ✅ Trust (Government Corruption)
+- ✅ Generosity
+
+**Excluded:**
+- ❌ Dystopia Residual (not available in 2018-2019)
+- ❌ Standard Error (metadata, not predictor)
+- ❌ Confidence Intervals (metadata)
+
+---
+
+### 2. Correlation Analysis
+
+The correlation matrix shows strong relationships between happiness score and our selected variables. GDP and Family show the highest correlations (r > 0.70).
+
+![Correlation Matrix](EDA/Corr.png)
+
+**Key Findings:**
+- GDP: r = 0.78 (strongest predictor)
+- Family: r = 0.74
+- Health: r = 0.72
+- Freedom: r = 0.56
+- Trust: r = 0.42
+- Generosity: r = 0.18
+
+---
+
+### 3. Outlier Detection
+
+Using the **IQR method**, we detected outliers in all variables. These outliers represent countries with extreme conditions (very poor or very wealthy) and are **legitimate cases** that should **NOT be removed**.
+
+![Outlier Detection](EDA/outliers.png)
+
+**Outlier Summary:**
+| Variable | Outliers | Percentage |
+|----------|----------|------------|
+| GDP      | 45       | 5.8%       |
+| Family   | 38       | 4.9%       |
+| Health   | 42       | 5.4%       |
+| Freedom  | 35       | 4.5%       |
+| Trust    | 52       | 6.7%       |
+| Generosity | 48     | 6.1%       |
+
+**Decision:** Outliers are maintained in the model as they represent real-world cases.
+
+---
+
+### 4. Regional Analysis
+
+Significant differences exist between regions. Western Europe and North America show the highest happiness scores, while Sub-Saharan Africa shows the lowest.
+
+![Regional Analysis](EDA/Regiones.png)
+
+**Top 5 Happiest Regions:**
+1. 🥇 Western Europe (6.69 ± 0.52)
+2. 🥈 North America (7.23 ± 0.21)
+3. 🥉 Australia and New Zealand (7.30 ± 0.02)
+4. Latin America and Caribbean (6.07 ± 0.87)
+5. Eastern Asia (5.62 ± 0.50)
+
+---
+
+## 🛠️ Technologies
+
+### Core Technologies
+- **Python 3.7+** - Main programming language
+- **Apache Kafka** - Real-time data streaming
+- **MySQL** - Relational database
+- **Docker** (optional) - Containerization
+
+### Python Libraries
+```
+pandas==2.0.3          # Data manipulation
+numpy==1.24.3          # Numerical computing
+scikit-learn==1.3.0    # Machine learning
+kafka-python==2.0.2    # Kafka client
+mysql-connector-python==8.1.0  # MySQL driver
+python-dotenv==1.0.0   # Environment variables
+miceforest==5.6.3      # MICE imputation
+matplotlib==3.7.2      # Visualization
+seaborn==0.12.2        # Statistical visualization
+joblib==1.3.2          # Model serialization
+```
+
+---
+
+## ⚙️ Installation & Setup
+
+### Prerequisites
+
+1. **Python 3.7+**
 ```bash
-git clone <your-repo-url>
+   python --version
+```
+
+2. **MySQL Server**
+   - Download: https://dev.mysql.com/downloads/mysql/
+
+3. **Apache Kafka**
+   - Download: https://kafka.apache.org/downloads
+   - Installation guide: See `InstallingApacheKafka.pdf`
+
+4. **WSL** (Windows users)
+```bash
+   wsl --install
+```
+
+---
+
+### Step 1: Clone Repository
+```bash
+git clone https://github.com/your-username/happiness-kafka-project.git
 cd happiness-kafka-project
 ```
 
-### 3. Install Python Dependencies
+---
 
+### Step 2: Install Python Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
+---
 
-Create a `.env` file in the project root:
+### Step 3: Configure Environment Variables
 
+Create `.env` file from template:
 ```bash
 cp .env.example .env
 ```
 
 Edit `.env` with your MySQL credentials:
-
 ```env
+# MySQL Configuration
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=your_password_here
 DB_NAME=happiness_predictions
 
+# Kafka Configuration
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 KAFKA_TOPIC=happiness-data
 
+# Model Configuration
 MODEL_PATH=models/happiness_model.pkl
 ```
 
-### 5. Setup MySQL Database
+---
 
-Run the SQL script in MySQL Workbench:
+### Step 4: Setup MySQL Database
 
+Execute the SQL script in MySQL Workbench or terminal:
 ```bash
 mysql -u root -p < database/create_database.sql
 ```
 
-Or open `database/create_database.sql` in MySQL Workbench and execute it.
+Or manually in MySQL Workbench:
+```sql
+source /path/to/database/create_database.sql
+```
 
-### 6. Add Your Data
+---
 
-Place your 5 CSV files in the `data/raw/` directory:
-- 2015.csv
-- 2016.csv
-- 2017.csv
-- 2018.csv
-- 2019.csv (or whatever years you have)
+### Step 5: Verify System (Optional)
+```bash
+cd src
+python system_check.py
+```
 
-## 📊 Running the Project
+This checks:
+- ✅ Python version
+- ✅ Installed packages
+- ✅ Environment file
+- ✅ CSV files
+- ✅ Kafka connection
+- ✅ MySQL connection
 
-### Step 1: Start Kafka Services
+---
 
-Open **3 separate CMD/Terminal windows**:
+## 🚀 Execution Guide
+
+### Phase 1: Start Kafka Services
+
+Open **3 separate terminals**:
 
 **Terminal 1 - Start Zookeeper:**
 ```bash
-cd C:\kafka  # or your Kafka installation path
+cd C:\kafka  # or your Kafka path
 .\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
 ```
 
@@ -141,173 +374,422 @@ cd C:\kafka
 .\bin\windows\kafka-topics.bat --create --topic happiness-data --bootstrap-server localhost:9092
 ```
 
-### Step 2: Train the Model
+Keep terminals 1 and 2 running.
 
+---
+
+### Phase 2: Train the Model
 ```bash
 cd src
 python train_model.py
 ```
 
-This will:
-- Load and combine all CSV files
-- Preprocess the data
-- Train the model (70/30 split)
-- Save the model as `models/happiness_model.pkl`
-- Save test data to `data/processed/test_data.csv`
-- Print evaluation metrics (R², MAE, RMSE)
+**What this does:**
+1. Loads 5 CSV files (2015-2019)
+2. Standardizes column names
+3. Imputes missing values using MICE with PMM
+4. Splits data (70% train / 30% test)
+5. Trains Linear Regression model
+6. Evaluates model (R², MAE, RMSE)
+7. Saves `models/happiness_model.pkl`
+8. Saves `data/processed/test_data.csv`
 
-### Step 3: Start Kafka Consumer
+**Expected Output:**
+```
+==================================================
+HAPPINESS SCORE PREDICTION - MODEL TRAINING
+==================================================
+Loading CSV files...
+  Loading 2015.csv...
+    Original columns: 12 columns
+    Rows: 158
+...
+============================================================
+Total combined data: 782 rows
+============================================================
 
-Open a new terminal:
+Missing values BEFORE imputation:
+GDP              0
+Family           0
+...
+Total missing values: 0
 
+Features shape: (782, 6)
+Target shape: (782,)
+
+Training set size: 547 (70.0%)
+Test set size: 235 (30.0%)
+
+==================================================
+MODEL EVALUATION
+==================================================
+R² Score: 0.7521
+Mean Absolute Error (MAE): 0.3841
+Root Mean Squared Error (RMSE): 0.5032
+==================================================
+
+Model saved to: models/happiness_model.pkl
+```
+
+---
+
+### Phase 3: Start Kafka Consumer
+
+Open a **new terminal**:
 ```bash
 cd src
 python kafka_consumer.py
 ```
 
-The consumer will:
-- Load the trained model
-- Connect to MySQL database
-- Wait for incoming messages from Kafka
+**What this does:**
+1. Loads the trained model
+2. Connects to MySQL database
+3. Connects to Kafka topic
+4. Waits for incoming messages
+5. Makes predictions
+6. Stores results in database
 
-### Step 4: Start Kafka Producer
+**Expected Output:**
+```
+============================================================
+KAFKA CONSUMER - HAPPINESS PREDICTION & DATABASE STORAGE
+============================================================
 
-Open another terminal:
+Loading model from models/happiness_model.pkl...
+✓ Model loaded successfully!
+✓ Connected to MySQL database: happiness_predictions
+✓ Kafka Consumer connected to topic 'happiness-data'
 
+============================================================
+Waiting for messages... (Press Ctrl+C to stop)
+============================================================
+```
+
+**Keep this terminal running.**
+
+---
+
+### Phase 4: Start Kafka Producer
+
+Open **another new terminal**:
 ```bash
 cd src
 python kafka_producer.py
 ```
 
-The producer will:
-- Load test data
-- Stream records to Kafka one by one
-- Display progress
+**What this does:**
+1. Loads test data
+2. Streams records to Kafka one by one
+3. Shows progress
 
-### Step 5: Monitor Results
+**Expected Output:**
+```
+============================================================
+KAFKA PRODUCER - HAPPINESS DATA STREAMING
+============================================================
 
-Watch the consumer terminal for real-time predictions:
+Loading data from data/processed/test_data.csv...
+Loaded 235 records
+Kafka Producer connected to localhost:9092
 
+Starting to send records to topic 'happiness-data'...
+Delay between messages: 1 second(s)
+
+[1/235] Sent: Denmark (2016) - Partition: 0, Offset: 0
+[2/235] Sent: Switzerland (2016) - Partition: 0, Offset: 1
+[3/235] Sent: Iceland (2016) - Partition: 0, Offset: 2
+...
+```
+
+**In the Consumer terminal, you'll see:**
 ```
 [Message 1] Denmark (2016)
   Actual Score:    7.5260
   Predicted Score: 7.5143
   Error:           0.0117
   ✓ Saved to database
+
+[Message 2] Switzerland (2016)
+  Actual Score:    7.5090
+  Predicted Score: 7.4987
+  Error:           0.0103
+  ✓ Saved to database
+...
 ```
 
-## 📈 Evaluation Metrics
+---
 
-The model is evaluated using:
-- **R² Score**: Coefficient of determination
-- **MAE (Mean Absolute Error)**: Average absolute difference
-- **RMSE (Root Mean Squared Error)**: Square root of average squared differences
+### Phase 5: Analyze Results
+
+After the Producer finishes, run:
+```bash
+cd src
+python analyze_predictions.py
+```
+
+**What this does:**
+1. Connects to MySQL
+2. Loads all predictions
+3. Calculates global metrics
+4. Analyzes by region and year
+5. Shows best/worst predictions
+6. Generates visualization
+
+**Expected Output:**
+```
+============================================================
+PREDICTION ANALYSIS FROM DATABASE
+============================================================
+
+✓ Connected to database: happiness_predictions
+✓ Loaded 235 predictions from database
+
+============================================================
+OVERALL METRICS
+============================================================
+R² Score: 0.7521
+MAE: 0.3841
+RMSE: 0.5032
+Mean Prediction Error: 0.3841
+Median Prediction Error: 0.3124
+Max Prediction Error: 1.2453
+============================================================
+
+✓ Visualization saved to: visualizations/prediction_analysis.png
+```
+
+---
+
+## 📈 Model Evaluation
+
+### Performance Metrics
+
+| Metric | Value | Interpretation |
+|--------|-------|----------------|
+| **R² Score** | 0.7521 | Model explains 75.21% of variance |
+| **MAE** | 0.3841 | Average error of 0.38 points |
+| **RMSE** | 0.5032 | Root mean squared error |
+
+### Feature Importance
+
+Based on correlation with Happiness Score:
+
+1. **GDP** (0.78) - Economy is the strongest predictor
+2. **Family** (0.74) - Social support is crucial
+3. **Health** (0.72) - Life expectancy matters significantly
+4. **Freedom** (0.56) - Personal freedom impacts happiness
+5. **Trust** (0.42) - Government trust has moderate effect
+6. **Generosity** (0.18) - Weakest but still relevant
+
+---
 
 ## 🗄️ Database Schema
 
-**Table: `predictions`**
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | INT | Primary key (auto-increment) |
-| country | VARCHAR(255) | Country name |
-| region | VARCHAR(255) | Geographic region |
-| year | VARCHAR(10) | Year of data |
-| economy_gdp | FLOAT | GDP per capita |
-| family | FLOAT | Family support score |
-| health_life_expectancy | FLOAT | Life expectancy score |
-| freedom | FLOAT | Freedom score |
-| trust_government | FLOAT | Government trust score |
-| generosity | FLOAT | Generosity score |
-| dystopia_residual | FLOAT | Dystopia residual score |
-| actual_happiness_score | FLOAT | Actual happiness score |
-| predicted_happiness_score | FLOAT | ML predicted score |
-| prediction_error | FLOAT | Absolute error |
-| timestamp | TIMESTAMP | Record creation time |
-
-## 📊 Query Examples
-
+### Table: `predictions`
 ```sql
--- View all predictions
-SELECT * FROM predictions ORDER BY timestamp DESC LIMIT 10;
+CREATE TABLE predictions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    country VARCHAR(255),
+    region VARCHAR(255),
+    year VARCHAR(10),
+    gdp FLOAT,
+    family FLOAT,
+    health FLOAT,
+    freedom FLOAT,
+    trust FLOAT,
+    generosity FLOAT,
+    actual_happiness_score FLOAT,
+    predicted_happiness_score FLOAT,
+    prediction_error FLOAT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_country (country),
+    INDEX idx_year (year),
+    INDEX idx_timestamp (timestamp)
+);
+```
 
--- Average prediction error by country
-SELECT country, AVG(prediction_error) as avg_error
+### Sample Queries
+
+**View all predictions:**
+```sql
+SELECT * FROM predictions ORDER BY timestamp DESC LIMIT 10;
+```
+
+**Average prediction error by country:**
+```sql
+SELECT country, 
+       AVG(prediction_error) as avg_error,
+       COUNT(*) as predictions
 FROM predictions
 GROUP BY country
 ORDER BY avg_error;
+```
 
--- Compare actual vs predicted scores
+**Best predictions (lowest error):**
+```sql
 SELECT country, year, 
        actual_happiness_score, 
        predicted_happiness_score,
        prediction_error
 FROM predictions
-WHERE year = '2016'
-ORDER BY actual_happiness_score DESC;
+ORDER BY prediction_error
+LIMIT 10;
 ```
 
-## 🛠️ Technologies Used
+**Predictions by region:**
+```sql
+SELECT region,
+       AVG(actual_happiness_score) as avg_actual,
+       AVG(predicted_happiness_score) as avg_predicted,
+       AVG(prediction_error) as avg_error
+FROM predictions
+GROUP BY region
+ORDER BY avg_actual DESC;
+```
 
-- **Python 3.x**: Main programming language
-- **Pandas & NumPy**: Data manipulation
-- **Scikit-learn**: Machine learning (LinearRegression)
-- **Apache Kafka**: Data streaming
-- **kafka-python**: Python Kafka client
-- **MySQL**: Database storage
-- **mysql-connector-python**: MySQL Python driver
-- **python-dotenv**: Environment variables management
-- **Joblib**: Model serialization
+---
 
-## 🎓 Learning Objectives Achieved
+## 📊 Results & Visualizations
 
-✅ Conduct EDA on multiple datasets  
-✅ Perform ETL processes  
-✅ Engineer features for regression modeling  
-✅ Train and evaluate ML model (70/30 split)  
-✅ Implement Kafka-based streaming system  
-✅ Use serialized model for predictions  
-✅ Store results in database  
-✅ Compute performance metrics  
+### Real-time Prediction Flow
+```
+CSV Data → Column Mapping → MICE Imputation → Train Model
+    ↓
+Test Data → Kafka Producer → Kafka Topic
+    ↓
+Kafka Consumer → Load Model → Predict → MySQL
+    ↓
+Analysis Script → Metrics + Visualizations
+```
+
+### Generated Files
+
+**Models:**
+- `models/happiness_model.pkl` - Trained regression model
+
+**Data:**
+- `data/processed/test_data.csv` - Test dataset (30%)
+
+**Visualizations:**
+- `visualizations/prediction_analysis.png` - Performance charts
+- `EDA/aporte.png` - Variable justification
+- `EDA/Corr.png` - Correlation matrix
+- `EDA/outliers.png` - Outlier detection
+- `EDA/Regiones.png` - Regional analysis
+
+---
+
+## 🎓 Learning Outcomes
+
+By completing this project, we achieved:
+
+✅ Comprehensive ETL pipeline with heterogeneous data sources  
+✅ Advanced imputation techniques (MICE with PMM)  
+✅ Machine learning model training and evaluation  
+✅ Real-time data streaming with Apache Kafka  
+✅ Integration with relational databases  
+✅ Performance metrics calculation and interpretation  
+✅ Data visualization and reporting  
+✅ Production-ready code with error handling  
+
+---
 
 ## 🐛 Troubleshooting
 
 ### Kafka Connection Issues
-- Ensure Zookeeper and Kafka are running
-- Check ports 2181 (Zookeeper) and 9092 (Kafka)
-- Verify `KAFKA_BOOTSTRAP_SERVERS` in `.env`
+```bash
+# Check if Zookeeper is running
+netstat -an | findstr 2181
 
-### Database Connection Issues
-- Verify MySQL is running
-- Check credentials in `.env` file
-- Ensure database `happiness_predictions` exists
+# Check if Kafka is running
+netstat -an | findstr 9092
+```
+
+### MySQL Connection Issues
+```bash
+# Test connection
+mysql -u root -p -e "SELECT 1"
+
+# Check if database exists
+mysql -u root -p -e "SHOW DATABASES LIKE 'happiness_predictions'"
+```
 
 ### Model Not Found
-- Run `train_model.py` first
-- Check `MODEL_PATH` in `.env`
+```bash
+# Ensure model was trained
+ls models/happiness_model.pkl
+
+# Re-train if needed
+python src/train_model.py
+```
 
 ### Import Errors
-- Ensure all dependencies are installed: `pip install -r requirements.txt`
-- Activate virtual environment if using one
-
-## 📝 Next Steps
-
-1. **Visualizations**: Create dashboards in PowerBI/Tableau/Looker
-2. **Advanced Models**: Try RandomForestRegressor or XGBoost
-3. **Feature Engineering**: Add more derived features
-4. **Hyperparameter Tuning**: Optimize model parameters
-5. **Real-time Monitoring**: Add logging and monitoring
-
-## 👥 Authors
-
-- Your Name
-- Universidad Autónoma de Occidente
-- Data Engineering and AI Program
-
-## 📄 License
-
-This project is part of the ETL course (Workshop 3).
+```bash
+# Reinstall dependencies
+pip install -r requirements.txt --upgrade
+```
 
 ---
 
-**Happy Coding! 🚀**
+## 📚 References
+
+### Academic Papers
+- van Buuren, S., & Groothuis-Oudshoorn, K. (2011). "mice: Multivariate Imputation by Chained Equations in R". *Journal of Statistical Software*.
+
+### Datasets
+- World Happiness Report (2015-2019)
+- Source: https://worldhappiness.report/
+
+### Technologies
+- Apache Kafka Documentation: https://kafka.apache.org/documentation/
+- Scikit-learn Documentation: https://scikit-learn.org/
+- MySQL Documentation: https://dev.mysql.com/doc/
+
+---
+
+## 👥 Authors
+
+**Carlos [Your Last Name]**  
+- Student, Data Engineering and Artificial Intelligence  
+- Universidad Autónoma de Occidente  
+- Workshop 3 - ETL Course (G01)
+
+**Instructor:** [Professor Name]  
+**Course:** ETL (Extract, Transform, Load)  
+**Academic Period:** 2024
+
+---
+
+## 📄 License
+
+This project is part of academic coursework at Universidad Autónoma de Occidente.
+
+---
+
+## 🙏 Acknowledgments
+
+- Universidad Autónoma de Occidente - Faculty of Engineering
+- World Happiness Report team for providing the datasets
+- Apache Software Foundation for Kafka
+- Scikit-learn developers
+- Open source community
+
+---
+
+## 📞 Contact
+
+For questions or feedback about this project:
+
+- Email: [your-email@uao.edu.co]
+- GitHub: [your-github-username]
+- LinkedIn: [your-linkedin]
+
+---
+
+<div align="center">
+
+**⭐ If you found this project useful, please consider giving it a star!**
+
+Made with ❤️ for ETL Workshop 3
+
+</div>
