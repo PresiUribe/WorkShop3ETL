@@ -731,38 +731,16 @@ pip install -r requirements.txt --upgrade
 
 ---
 
-## 📚 References
-
-### Academic Papers
-- van Buuren, S., & Groothuis-Oudshoorn, K. (2011). "mice: Multivariate Imputation by Chained Equations in R". *Journal of Statistical Software*.
-
-### Datasets
-- World Happiness Report (2015-2019)
-- Source: https://worldhappiness.report/
-
-### Technologies
-- Apache Kafka Documentation: https://kafka.apache.org/documentation/
-- Scikit-learn Documentation: https://scikit-learn.org/
-- MySQL Documentation: https://dev.mysql.com/doc/
-
----
-
 ## 👥 Authors
 
-**Carlos [Your Last Name]**  
+**Samuel Uribe**  
 - Student, Data Engineering and Artificial Intelligence  
 - Universidad Autónoma de Occidente  
 - Workshop 3 - ETL Course (G01)
 
-**Instructor:** [Professor Name]  
+**Instructor:** Breyner Posso  
 **Course:** ETL (Extract, Transform, Load)  
-**Academic Period:** 2024
-
----
-
-## 📄 License
-
-This project is part of academic coursework at Universidad Autónoma de Occidente.
+**Academic Period:** 2025
 
 ---
 
@@ -773,16 +751,6 @@ This project is part of academic coursework at Universidad Autónoma de Occident
 - Apache Software Foundation for Kafka
 - Scikit-learn developers
 - Open source community
-
----
-
-## 📞 Contact
-
-For questions or feedback about this project:
-
-- Email: [your-email@uao.edu.co]
-- GitHub: [your-github-username]
-- LinkedIn: [your-linkedin]
 
 ---
 
