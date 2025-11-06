@@ -1,6 +1,7 @@
 """
 Kafka Consumer: Receives streaming data, makes predictions, and stores results in MySQL.
 """
+import pandas as pd
 import json
 import joblib
 import numpy as np
@@ -43,53 +44,6 @@ def create_db_connection():
         print(f"Error connecting to MySQL: {e}")
         raise
 
-def insert_prediction(cursor, connection, data, prediction):
-    """
-    Insert prediction results into the database.
-    
-    Args:
-        cursor: MySQL cursor object
-        connection: MySQL connection object
-        data: Original data message
-        prediction: Predicted happiness score
-    """
-    try:
-        query = """
-        INSERT INTO predictions (
-            country, region, year,
-            gdp, family, health,
-            freedom, trust, generosity,
-            actual_happiness_score, predicted_happiness_score, prediction_error
-        ) VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-        )
-        """
-        
-        features = data['features']
-        actual_score = data['actual_happiness_score']
-        prediction_error = abs(actual_score - prediction)
-        
-        values = (
-            data['country'],
-            data['region'],
-            data['year'],
-            features['gdp'],
-            features['family'],
-            features['health'],
-            features['freedom'],
-            features['trust'],
-            features['generosity'],
-            actual_score,
-            float(prediction),
-            float(prediction_error)
-        )
-        
-        cursor.execute(query, values)
-        connection.commit()
-        
-    except mysql.connector.Error as e:
-        print(f"Error inserting into database: {e}")
-        connection.rollback()
 
 def create_consumer():
     """
@@ -113,6 +67,57 @@ def create_consumer():
         print(f"Error creating Kafka Consumer: {e}")
         raise
 
+def insert_prediction(cursor, connection, data, prediction):
+    """
+    Insert prediction results into the database.
+    
+    Args:
+        cursor: MySQL cursor object
+        connection: MySQL connection object
+        data: Original data message
+        prediction: Predicted happiness score
+    """
+    try:
+        query = """
+        INSERT INTO predictions (
+            country, region, year,
+            gdp, family, health,
+            freedom, trust, generosity,
+            actual_happiness_score, predicted_happiness_score, prediction_error,
+            data_split
+        ) VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+        )
+        """
+        
+        features = data['features']
+        actual_score = data['actual_happiness_score']
+        prediction_error = abs(actual_score - prediction)
+        data_split = data.get('data_split', 'unknown')  # NEW
+        
+        values = (
+            data['country'],
+            data['region'],
+            data['year'],
+            features['gdp'],
+            features['family'],
+            features['health'],
+            features['freedom'],
+            features['trust'],
+            features['generosity'],
+            actual_score,
+            float(prediction),
+            float(prediction_error),
+            data_split  # NEW
+        )
+        
+        cursor.execute(query, values)
+        connection.commit()
+        
+    except mysql.connector.Error as e:
+        print(f"Error inserting into database: {e}")
+        connection.rollback()
+
 def process_messages(consumer, model, db_connection):
     """
     Process incoming messages from Kafka.
@@ -124,6 +129,9 @@ def process_messages(consumer, model, db_connection):
     """
     cursor = db_connection.cursor()
     message_count = 0
+    train_count = 0
+    test_count = 0
+    unknown_count = 0
     
     print("\n" + "="*60)
     print("Waiting for messages... (Press Ctrl+C to stop)")
@@ -133,6 +141,15 @@ def process_messages(consumer, model, db_connection):
         for message in consumer:
             message_count += 1
             data = message.value
+            
+            # Count by split type
+            data_split = data.get('data_split', 'unknown')
+            if data_split == 'train':
+                train_count += 1
+            elif data_split == 'test':
+                test_count += 1
+            else:
+                unknown_count += 1
             
             # Extract features for prediction (6 features)
             features = data['features']
@@ -155,18 +172,26 @@ def process_messages(consumer, model, db_connection):
             # Store in database
             insert_prediction(cursor, db_connection, data, prediction)
             
-            # Print results
-            print(f"[Message {message_count}] {data['country']} ({data['year']})")
-            print(f"  Actual Score:    {actual:.4f}")
-            print(f"  Predicted Score: {prediction:.4f}")
-            print(f"  Error:           {error:.4f}")
-            print(f"  ✓ Saved to database\n")
+            # Print results (every 50 messages or if it's a test record)
+            if message_count % 50 == 0 or data_split == 'test':
+                print(f"[Message {message_count}] {data['country']} ({data['year']}) [{data_split.upper()}]")
+                print(f"  Actual Score:    {actual:.4f}")
+                print(f"  Predicted Score: {prediction:.4f}")
+                print(f"  Error:           {error:.4f}")
+                print(f"  ✓ Saved to database\n")
             
     except KeyboardInterrupt:
-        print("\n\nConsumer interrupted by user")
+        print("\n\n⚠️ Consumer interrupted by user")
     finally:
         cursor.close()
-        print(f"\nTotal messages processed: {message_count}")
+        print(f"\n{'='*60}")
+        print(f"PROCESSING SUMMARY")
+        print(f"{'='*60}")
+        print(f"Total messages processed: {message_count}")
+        print(f"  - Train records: {train_count}")
+        print(f"  - Test records: {test_count}")
+        print(f"  - Unknown records: {unknown_count}")
+        print(f"{'='*60}")
 
 def main():
     """

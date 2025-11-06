@@ -220,6 +220,26 @@ def save_model(model, model_path):
     # Save the model
     joblib.dump(model, model_path)
     print(f"\nModel saved to: {model_path}")
+def save_split_indices(df_clean, X_train, X_test):
+    """
+    Save information about which records were used in train/test split.
+    
+    Args:
+        df_clean: Cleaned dataframe
+        X_train: Training features
+        X_test: Test features
+    """
+    # Create a column to mark train/test split
+    df_clean['data_split'] = 'train'
+    df_clean.loc[X_test.index, 'data_split'] = 'test'
+    
+    # Save the complete dataset with split information
+    complete_data_path = 'data/processed/complete_data_with_split.csv'
+    os.makedirs(os.path.dirname(complete_data_path), exist_ok=True)
+    df_clean.to_csv(complete_data_path, index=False)
+    print(f"Complete data with split info saved to: {complete_data_path}")
+    
+    return df_clean
 
 def main():
     """
@@ -259,7 +279,10 @@ def main():
     # Save the model
     save_model(model, MODEL_PATH)
     
-    # Save test data for later use in Kafka streaming
+    # Save split indices (NEW)
+    df_clean = save_split_indices(df_clean, X_train, X_test)
+    
+    # Save test data for later use in Kafka streaming (keep this for compatibility)
     test_data = df_clean.iloc[X_test.index].copy()
     test_data_path = 'data/processed/test_data.csv'
     os.makedirs(os.path.dirname(test_data_path), exist_ok=True)
@@ -272,3 +295,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
